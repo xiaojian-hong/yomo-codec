@@ -3,7 +3,7 @@
 pub enum WireType {
   /// UTF-8 string
   String = 0x00,
-  /// Big-endian encoding. numberic type
+  /// Big-endian encoding. varint numberic type.
   Integer = 0x01,
   /// float, IEEE754 Big-endian (32bit/64bit/128bit)
   Float = 0x02,

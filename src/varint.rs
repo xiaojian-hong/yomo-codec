@@ -1,15 +1,15 @@
 use std::vec::Vec;
 
-/// 描述变长类型（little-endian）
+/// 描述变长类型（big-endian）
 /// 
 /// # 规则
 /// 
-/// 一个Byte是一个单元，最高位用作msb：
+/// 一个Byte是一个单元，最高位用作msb(most significant bit)：
 /// 
-/// + 当最高位为1时，表示后面一个Byte也是该值的一部分
-/// + 当最高位为0时，表示这是最后一个值的表述部分
+/// + 当该Byte最高位为1时，表示后一个Byte也是该值的一部分，继续向后seek一个Byte处理
+/// + 当该Byte最高位为0时，表示这是值的最后一个表述部分，停止seek
 /// 
-/// 所以表示值的有效位为 7 个bits。例如：`0100 0001`，表示该Byte就是整个值，如果该值类型为数值类型，则是`0x41`（十进制是101），如果该值类型是字符（不是Rust的char，它是4bytes的），表示'A'；而`1000 0010 0000 0001`在解析编码的时候，会先取出第一个Byte `1000 0010`，首先发现msb位为1，则表示下一个Byte也是该值的一部分，则继续读取下一个值`0000 0001`，发现该Byte的msb为0，则完成该Varint值的读取，得到的两个描述值的Byte分别为`0000 0010`和`0000 0001`, 按照little-endian规则，该值是`0000 0001 0000 0010`，如果该值是数值类型，则是`0x12`, 十进制是258.
+/// 所以表示值的有效位为7个bits。例如：`0100 0001`，表示该Byte就是整个值，如果该值类型为数值类型，则是`0x41`（十进制是101），如果该值类型是字符（不是Rust的char，它是4bytes的），表示'A'；而`1000 0010 0000 0001`在解析编码的时候，会先取出第一个Byte `1000 0010`，首先发现msb位为1，则表示下一个Byte也是该值的一部分，则继续读取下一个值`0000 0001`，发现该Byte的msb为0，则完成该Varint值的读取，得到的两个描述值的Byte分别为`0000 0010`和`0000 0001`, 按照big-endian规则，该值是`0000 0010 0000 0001`，如果该值是数值类型，则是`0x21`, 十进制是577.
 #[derive(Debug, Default)]
 pub struct Varint {
   vec: Vec<u8>,
@@ -22,9 +22,8 @@ impl Varint {
   }
 
   /// Get the raw 'value bytes'
-  pub fn into_bytes(mut self) -> Vec<u8> {
-    self.vec.reverse();
-    return self.vec;
+  pub fn into_bytes(&self) -> &Vec<u8> {
+    return &self.vec;
   }
 
   /// 给定的bytes，给定起始位置，读取一个完整的`Varint`值，并返回截止字节位置
@@ -58,7 +57,7 @@ impl Varint {
     self.vec.len()
   }
 
-  /// Convert to i32 type value
+  /// Convert to u32 type value
   pub fn to_u32(&self) -> u32 {
     let len = self.vec.len();
     let mut result: u32 = 0;
@@ -106,11 +105,10 @@ mod tests {
   fn read_multi_bytes_varint_from_0() {
     // 1. valid bits are [0,1,2] -> 0x81, 0x82, 0x03
     // 2. remove msb: 0x01, 0x02, 0x03
-    // 3. little-endian: 0x03, 0x02, 0x01
     let v = vec![0x81, 0x82, 0x03, 0x01, 0x01];
     let mut reader = Varint::new();
     let at = reader.read(v, 0);
-    assert_eq!(reader.into_bytes(), &[0x03, 0x02, 0x01]);
+    assert_eq!(reader.into_bytes(), &[0x01, 0x02, 0x03]);
     assert_eq!(at, 2);
   }
 
@@ -118,8 +116,7 @@ mod tests {
   fn to_u32() {
     // 1. valid bits are [0,1,2] -> 0x81, 0x82, 0x03
     // 2. remove msb: 0x01, 0x02, 0x03
-    // 3. little-endian: 0x03, 0x02, 0x01
-    // 4. to i32: 0x00010203 = 66051
+    // 4. to u32: 0x00010203 = 66051
     let v = vec![0x81, 0x82, 0x03, 0x01, 0x01];
     let mut reader = Varint::new();
     let at = reader.read(v, 0);
