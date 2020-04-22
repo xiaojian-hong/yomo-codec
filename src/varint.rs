@@ -1,5 +1,8 @@
 use std::vec::Vec;
 
+pub const MSB: u8 = 0b1000_0000;
+const DROP_MSB: u8 = 0b0111_1111;
+
 /// 描述变长类型（big-endian）
 /// 
 /// # 规则
@@ -21,9 +24,19 @@ impl Varint {
     Varint { vec: Vec::new() }
   }
 
+  /// zigzag from : https://developers.google.com/protocol-buffers/docs/encoding#signed-integers
+  fn to_zigzag(from: i64) -> u64 {
+    ((from << 1) ^ (from >> 63)) as u64
+  }
+
+  /// zigzag from : https://developers.google.com/protocol-buffers/docs/encoding#signed-integers
+  fn from_zigzag(from: u64) -> i64 {
+    ((from >> 1) ^ (-((from & 1) as i64)) as u64) as i64
+  }
+
   /// Get the raw 'value bytes'
   pub fn into_bytes(&self) -> &Vec<u8> {
-    return &self.vec;
+    &self.vec
   }
 
   /// 给定的bytes，给定起始位置，读取一个完整的`Varint`值，并返回截止字节位置
@@ -36,9 +49,9 @@ impl Varint {
     let mut curr = at;
     let pos = loop {
       // push `val[curr]`'s 7 valid bits `0111 1111` to vec
-      self.vec.push(default_val[curr] & 0x7F);
+      self.vec.push(default_val[curr] & DROP_MSB);
       // if `val[curr]`'s msb is `1000 0000`, continue reading next one
-      if default_val[curr] & 0x80 == 0 {
+      if default_val[curr] & MSB == 0 {
         break curr;
       }
       curr += 1;
@@ -62,8 +75,7 @@ impl Varint {
     let len = self.vec.len();
     let mut result: u32 = 0;
     for i in 0..len {
-      let tmp: u32 = (self.vec[i] as u32) << ((len - i - 1) * 8);
-      result = result + tmp;
+      result |= (self.vec[i] as u32) << ((len - i - 1) * 8);
     }
     return result;
   }
@@ -143,5 +155,11 @@ mod tests {
     reader = Varint::new();
     reader.read(v, 0);
     assert_eq!(reader.to_bool(), true);
+  }
+
+  #[test]
+  fn zigzag (){
+    // let mut reader = Varint::new();
+    assert_eq!(100, Varint::from_zigzag(Varint::to_zigzag(100)))
   }
 }
