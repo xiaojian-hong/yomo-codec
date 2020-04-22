@@ -29,12 +29,17 @@ impl Varint {
 
   /// 给定的bytes，给定起始位置，读取一个完整的`Varint`值，并返回截止字节位置
   pub fn read(&mut self, val: Vec<u8>, at: usize) -> usize {
+    let mut default_val = vec![0x00];
+    if val.len() != 0 {
+      default_val = val;
+    }
+
     let mut curr = at;
     let pos = loop {
       // push `val[curr]`'s 7 valid bits `0111 1111` to vec
-      self.vec.push(val[curr] & 0x7F);
+      self.vec.push(default_val[curr] & 0x7F);
       // if `val[curr]`'s msb is `1000 0000`, continue reading next one
-      if val[curr] & 0x80 == 0 {
+      if default_val[curr] & 0x80 == 0 {
         break curr;
       }
       curr += 1;
@@ -62,6 +67,16 @@ impl Varint {
       result = result + tmp;
     }
     return result;
+  }
+
+  /// Convert to bool. empty means false,
+  pub fn to_bool(&self) -> bool {
+    if self.len() == 0 {
+      return false;
+    } 
+    else {
+      return self.vec[0] == 1;
+    }
   }
 }
 
@@ -111,5 +126,25 @@ mod tests {
     // assert_eq!(reader.into_bytes(), &[0x03, 0x02, 0x01]);
     assert_eq!(at, 2);
     assert_eq!(reader.to_u32(), 0x010203)
+  }
+
+  #[test]
+  fn to_bool_empty_is_false (){
+    let v = vec![];
+    let mut reader = Varint::new();
+    reader.read(v, 0);
+    assert_eq!(reader.to_bool(), false);
+  }
+
+  #[test]
+  fn to_bool_false_or_true(){
+    let mut v = vec![0x00];
+    let mut reader = Varint::new();
+    reader.read(v, 0);
+    assert_eq!(reader.to_bool(), false);
+    v = vec![0x01];
+    reader = Varint::new();
+    reader.read(v, 0);
+    assert_eq!(reader.to_bool(), true);
   }
 }
