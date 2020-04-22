@@ -52,6 +52,17 @@ impl Varint {
   pub fn len(&self) -> usize {
     self.vec.len()
   }
+
+  /// Convert to i32 type value
+  pub fn to_i32(&self) -> i32 {
+    let len = self.vec.len();
+    let mut result: i32 = 0;
+    for i in 0..len {
+      let tmp: i32 = (self.vec[i] as i32) << ((len - i - 1) * 8);
+      result = result + tmp;
+    }
+    return result;
+  }
 }
 
 #[cfg(test)]
@@ -86,5 +97,19 @@ mod tests {
     let at = reader.read(v, 0);
     assert_eq!(reader.into_bytes(), &[0x03, 0x02, 0x01]);
     assert_eq!(at, 2);
+  }
+
+  #[test]
+  fn to_i32() {
+    // 1. valid bits are [0,1,2] -> 0x81, 0x82, 0x03
+    // 2. remove msb: 0x01, 0x02, 0x03
+    // 3. little-endian: 0x03, 0x02, 0x01
+    // 4. to i32: 0x00010203 = 66051
+    let v = vec![0x81, 0x82, 0x03, 0x01, 0x01];
+    let mut reader = Varint::new();
+    let at = reader.read(v, 0);
+    // assert_eq!(reader.into_bytes(), &[0x03, 0x02, 0x01]);
+    assert_eq!(at, 2);
+    assert_eq!(reader.to_i32(), 0x010203)
   }
 }
