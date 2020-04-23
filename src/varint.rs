@@ -5,6 +5,14 @@ const DROP_MSB: u8 = 0b0111_1111;
 
 /// 描述变长类型（big-endian）
 /// 
+/// # 参考
+/// 
+/// [LEB128编码方式](https://berryjam.github.io/2019/09/LEB128(Little-Endian-Base-128)%E6%A0%BC%E5%BC%8F%E4%BB%8B%E7%BB%8D/)
+/// 
+/// [zigzag数据字典方式](https://developers.google.com/protocol-buffers/docs/encoding#signed-integers)
+/// 
+/// [二级制表示器工具](http://calc.50x.eu/)
+/// 
 /// # 规则
 /// 
 /// 一个Byte是一个单元，最高位用作msb(most significant bit)：
@@ -39,19 +47,17 @@ impl Varint {
     &self.vec
   }
 
-  /// 给定的bytes，给定起始位置，读取一个完整的`Varint`值，并返回截止字节位置
-  pub fn read(&mut self, val: Vec<u8>, at: usize) -> usize {
-    let mut default_val = vec![0x00];
-    if val.len() != 0 {
-      default_val = val;
-    }
-
+  /// 给定的bytes，给定起始位置，读取一个完整的`Varint`值，并返回读取字节长度
+  pub fn read(&mut self, val: &[u8], at: usize) -> usize {
     let mut curr = at;
     let pos = loop {
-      self.vec.push(default_val[curr]);
+      if val.len() == 0 {
+        break 0;
+      }
+      self.vec.push(val[curr]);
       // if `val[curr]`'s msb is `1000 0000`, continue reading next one
-      if default_val[curr] & MSB == 0 {
-        break curr;
+      if val[curr] & MSB == 0 {
+        break curr - at + 1;
       }
       curr += 1;
     };
@@ -118,40 +124,40 @@ mod tests {
 
   #[test]
   fn read_1byte_varint_from_0() {
-    let v = vec![0x01, 0x02];
+    let v = [0x01, 0x02];
     let mut reader = Varint::new();
-    let at = reader.read(v, 0);
+    let delta = reader.read(&v, 0);
     assert_eq!(reader.into_bytes(), &[1]);
-    assert_eq!(at, 0);
+    assert_eq!(delta, 1);
   }
 
   #[test]
   fn from_u32_1_byte() {
-    let v = vec![0x01, 0x01, 0x02];
+    let v = [0x01, 0x01, 0x02];
     let mut reader = Varint::new();
-    let at = reader.read(v, 1);
+    let delta = reader.read(&v, 1);
     assert_eq!(reader.into_bytes(), &[1]);
-    assert_eq!(at, 1);
+    assert_eq!(delta, 1);
   }
 
   #[test]
   fn read_multi_bytes_varint_from_0() {
     // 1. valid bits are [0,1,2] -> 0x81, 0x82, 0x03
     // 2. remove msb: 0x01, 0x02, 0x03
-    let v = vec![0x81, 0x82, 0x03, 0x01, 0x01];
+    let v = [0x81, 0x82, 0x03, 0x01, 0x01];
     let mut reader = Varint::new();
-    let at = reader.read(v, 0);
+    let delta = reader.read(&v, 0);
     assert_eq!(reader.into_bytes(), &[0x81, 0x82, 0x03]);
-    assert_eq!(at, 2);
+    assert_eq!(delta, 3);
   }
 
   #[test]
   fn to_i64() {
-    let v = vec![0x81, 0x82, 0x03, 0x01, 0x01];
+    let v = [0x81, 0x82, 0x03, 0x01, 0x01];
     let mut reader = Varint::new();
-    let at = reader.read(v, 0);
+    let delta = reader.read(&v, 0);
     assert_eq!(reader.into_bytes(), &[0x81, 0x82, 0x03]);
-    assert_eq!(at, 2);
+    assert_eq!(delta, 3);
     assert_eq!(reader.to_i64(), -24705)
   }
 
@@ -176,28 +182,28 @@ mod tests {
       let mut reader = Varint::new();
       reader.from_i64(i);
       let mut reader2 = Varint::new();
-      reader2.read(reader.into_bytes().to_vec(), 0);
+      reader2.read(reader.into_bytes(), 0);
       assert_eq!(reader2.to_i64(), i);
     }
   }
 
   #[test]
   fn to_bool_empty_is_false (){
-    let v = vec![];
+    let v = [];
     let mut reader = Varint::new();
-    reader.read(v, 0);
+    reader.read(&v, 0);
     assert_eq!(reader.to_bool(), false);
   }
 
   #[test]
   fn to_bool_false_or_true(){
-    let mut v = vec![0x00];
+    let mut v = [0x00];
     let mut reader = Varint::new();
-    reader.read(v, 0);
+    reader.read(&v, 0);
     assert_eq!(reader.to_bool(), false);
-    v = vec![0x01];
+    v = [0x01];
     reader = Varint::new();
-    reader.read(v, 0);
+    reader.read(&v, 0);
     assert_eq!(reader.to_bool(), true);
   }
 

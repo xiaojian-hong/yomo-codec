@@ -23,6 +23,10 @@ pub struct Tag {
 }
 
 impl Tag {
+  pub fn new(data: u8) -> Tag {
+    Tag { code: data }
+  }
+
   pub fn read_type(&mut self, data: u8){
     self.code = data;
   }
