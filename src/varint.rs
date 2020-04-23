@@ -18,20 +18,20 @@ pub struct Varint {
   vec: Vec<u8>,
 }
 
+/// zigzag from : https://developers.google.com/protocol-buffers/docs/encoding#signed-integers
+fn zigzag_encode(from: i64) -> u64 {
+  ((from << 1) ^ (from >> 63)) as u64
+}
+
+/// zigzag from : https://developers.google.com/protocol-buffers/docs/encoding#signed-integers
+fn zigzag_decode(from: u64) -> i64 {
+  ((from >> 1) ^ (-((from & 1) as i64)) as u64) as i64
+}
+
 impl Varint {
   /// Create an empty Varint
   pub const fn new() -> Varint {
     Varint { vec: Vec::new() }
-  }
-
-  /// zigzag from : https://developers.google.com/protocol-buffers/docs/encoding#signed-integers
-  fn to_zigzag(from: i64) -> u64 {
-    ((from << 1) ^ (from >> 63)) as u64
-  }
-
-  /// zigzag from : https://developers.google.com/protocol-buffers/docs/encoding#signed-integers
-  fn from_zigzag(from: u64) -> i64 {
-    ((from >> 1) ^ (-((from & 1) as i64)) as u64) as i64
   }
 
   /// Get the raw 'value bytes'
@@ -48,8 +48,7 @@ impl Varint {
 
     let mut curr = at;
     let pos = loop {
-      // push `val[curr]`'s 7 valid bits `0111 1111` to vec
-      self.vec.push(default_val[curr] & DROP_MSB);
+      self.vec.push(default_val[curr]);
       // if `val[curr]`'s msb is `1000 0000`, continue reading next one
       if default_val[curr] & MSB == 0 {
         break curr;
@@ -70,14 +69,36 @@ impl Varint {
     self.vec.len()
   }
 
-  /// Convert to u32 type value
-  pub fn to_u32(&self) -> u32 {
+  /// Convert to i64 type value
+  /// 
+  /// if vec are [0x81, 0x82, 0x03], which in binary is [0b1000_0001, 0b1000_0010, 0b0000_0011]
+  /// 1. remove msb: 0b0000_0001, 0b0000_0010, 0b0000_0011
+  /// 2. is little-endian, 每一个byte都选底7位，组合的结果是: 0000_0000_1100_0001_0000_0001
+  /// 3. 用u64表示结果: 0XC101 = 49409
+  /// 4. zigzag_decode(49409) = -24705
+  pub fn to_i64(&self) -> i64 {
     let len = self.vec.len();
-    let mut result: u32 = 0;
+    let mut result: u64 = 0;
     for i in 0..len {
-      result |= (self.vec[i] as u32) << ((len - i - 1) * 8);
+      result |= ((self.vec[i] & DROP_MSB) as u64) << (i * 7);
     }
-    return result;
+    return zigzag_decode(result);
+  }
+
+  /// encode i64 to varint number
+  /// 
+  /// 1. data:i64 = 255
+  /// 2. zigzag_encode(data) as u64 = 510（0b0000_0001_1111_1110)
+  /// 3. to Varint codec: [0b0111_1110， 0b0000_0011]
+  /// 4. add msb: [0b1111_1110， 0b0000_0011]
+  pub fn from_i64(&mut self, data:i64) {
+    let mut val = zigzag_encode(data);
+    while val > DROP_MSB as u64 {
+      let element: u8 = (val as u8 & DROP_MSB) | MSB;
+      self.vec.push(element);
+      val >>= 7;
+    }
+    self.vec.push(val as u8)
   }
 
   /// Convert to bool. empty means false,
@@ -105,7 +126,7 @@ mod tests {
   }
 
   #[test]
-  fn read_1byte_varint_from_1() {
+  fn from_u32_1_byte() {
     let v = vec![0x01, 0x01, 0x02];
     let mut reader = Varint::new();
     let at = reader.read(v, 1);
@@ -120,21 +141,44 @@ mod tests {
     let v = vec![0x81, 0x82, 0x03, 0x01, 0x01];
     let mut reader = Varint::new();
     let at = reader.read(v, 0);
-    assert_eq!(reader.into_bytes(), &[0x01, 0x02, 0x03]);
+    assert_eq!(reader.into_bytes(), &[0x81, 0x82, 0x03]);
     assert_eq!(at, 2);
   }
 
   #[test]
-  fn to_u32() {
-    // 1. valid bits are [0,1,2] -> 0x81, 0x82, 0x03
-    // 2. remove msb: 0x01, 0x02, 0x03
-    // 4. to u32: 0x00010203 = 66051
+  fn to_i64() {
     let v = vec![0x81, 0x82, 0x03, 0x01, 0x01];
     let mut reader = Varint::new();
     let at = reader.read(v, 0);
-    // assert_eq!(reader.into_bytes(), &[0x03, 0x02, 0x01]);
+    assert_eq!(reader.into_bytes(), &[0x81, 0x82, 0x03]);
     assert_eq!(at, 2);
-    assert_eq!(reader.to_u32(), 0x010203)
+    assert_eq!(reader.to_i64(), -24705)
+  }
+
+  #[test]
+  fn from_i64() {
+    let mut data: i64 = 255;
+    let mut reader = Varint::new();
+    reader.from_i64(data);
+    assert_eq!(reader.into_bytes(), &[0b1111_1110, 0b0000_0011]);
+    assert_eq!(reader.to_i64(), data);
+    reader = Varint::new();
+    data = -1;
+    reader.from_i64(data);
+    assert_eq!(reader.into_bytes(), &[0x01]);
+    assert_eq!(reader.to_i64(), data);
+  }
+
+  #[test]
+  fn i64() {
+    let data: i64 = 1000;
+    for i in (-1 * data)..data {
+      let mut reader = Varint::new();
+      reader.from_i64(i);
+      let mut reader2 = Varint::new();
+      reader2.read(reader.into_bytes().to_vec(), 0);
+      assert_eq!(reader2.to_i64(), i);
+    }
   }
 
   #[test]
@@ -160,6 +204,7 @@ mod tests {
   #[test]
   fn zigzag (){
     // let mut reader = Varint::new();
-    assert_eq!(100, Varint::from_zigzag(Varint::to_zigzag(100)))
+    assert_eq!(100, zigzag_decode(zigzag_encode(100)));
+    assert_eq!(-100, zigzag_decode(zigzag_encode(-100)));
   }
 }
