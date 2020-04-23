@@ -23,6 +23,10 @@ pub struct Tag {
 }
 
 impl Tag {
+  pub fn read_type(&mut self, data: u8){
+    self.code = data;
+  }
+
   pub fn set_type(&mut self, wire_type: WireType) {
     self.code = wire_type as u8;
   }
