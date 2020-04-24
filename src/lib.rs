@@ -109,7 +109,7 @@ mod tests {
     let mut tlv = TLV::default();
     tlv.read(&v, 0);
     tlv.to_float();
-  }  
+  }
   
   #[test]
   fn panic_to_string() {
@@ -117,6 +117,14 @@ mod tests {
     let mut tlv = TLV::default();
     tlv.read(&v, 0);
     assert_eq!(tlv.to_string(), "C");
+  }
+  
+  #[test]
+  fn panic_to_string2() {
+    let v = [0x01, 0x04, 240, 159, 146, 150];
+    let mut tlv = TLV::default();
+    tlv.read(&v, 0);
+    assert_eq!(tlv.to_string(), "💖");
   }
   
   #[test]
