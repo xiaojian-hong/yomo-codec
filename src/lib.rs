@@ -54,8 +54,7 @@ impl TLV {
 
   /// 如果TLV的`Value`是`String`类型，则转换为String类型
   pub fn to_string(&mut self) -> String {
-    // "".to_string()
-    panic!("not implementation")
+    String::from_utf8(self.buf.to_vec()).unwrap()
   }
 
   pub fn to_uuid(&mut self) {
@@ -113,12 +112,11 @@ mod tests {
   }  
   
   #[test]
-  #[should_panic]
   fn panic_to_string() {
-    let v = [0x01, 0x02, 0x01];
+    let v = [0x01, 0x02, 0x43];
     let mut tlv = TLV::default();
     tlv.read(&v, 0);
-    tlv.to_string();
+    assert_eq!(tlv.to_string(), "C");
   }
   
   #[test]
