@@ -3,11 +3,10 @@ name = "yomo-codec"
 description = "YoMo codec serializer and desrializer"
 version = "0.0.1"
 authors = ["CELLA inc."]
-keywords = ["yomo", "codec", "parser"]
+keywords = ["yomo", "codec", "parser", "edge_computing", "iiot"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/10cella/yomo-codec"
 edition = "2018"
 
 [dependencies]
-byteorder = "1.3.4"

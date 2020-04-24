@@ -9,7 +9,7 @@ use varint::Varint;
 pub struct TLV {
   tag: Tag,
   len: i64,
-  val: i64,
+  buf: Vec<u8>,
   pos: usize,
 }
 
@@ -32,14 +32,34 @@ impl TLV {
     // `Value`的存储长度就是`Length`的值
     self.pos += delta;
     let tmp = &data[self.pos..(self.pos + (self.len as usize))];
-    let mut v = Varint::new();
-    v.read(&tmp, 0);
-    // 得到`Value`的值
-    self.val = v.to_i64();
+    self.buf = tmp.to_vec();
   }
 
-  pub fn to_value(&mut self) -> i64 {
-    self.val
+  /// 如果TLV的`Value`是`Varint`类型，则转换为i64类型
+  pub fn to_varint(&mut self) -> i64 {
+    let mut v = Varint::new();
+    v.read(&self.buf, 0);
+    v.to_i64()
+  }
+
+  /// 如果TLV的`Value`是`Binary`类型，则转换为Vec<u8>类型
+  pub fn to_binary(&mut self) -> &Vec<u8> {
+    &self.buf
+  }
+
+  /// 如果TLV的`Value`是`Float`类型，则转换为IEEE754类型  
+  pub fn to_float(&mut self) -> f64 {
+    panic!("TODO: confirm rust f32 vs IEEE754, not implementation")
+  }
+
+  /// 如果TLV的`Value`是`String`类型，则转换为String类型
+  pub fn to_string(&mut self) -> String {
+    // "".to_string()
+    panic!("not implementation")
+  }
+
+  pub fn to_uuid(&mut self) {
+    panic!("TODO: we need implement an uuid format with distributed unique ID generator, also, the UUID should contain data sender identify and timestamp, not implementation")
   }
 }
 
@@ -54,7 +74,8 @@ mod tests {
     let v = [0x01, 0x02, 0x01];
     let mut tlv = TLV::default();
     tlv.read(&v, 0);
-    assert_eq!(tlv.to_value(), -1);
+    assert_eq!(tlv.to_varint(), -1);
+    assert_eq!(tlv.to_binary().as_slice(), [1]);
   }
 
   #[test]
@@ -81,4 +102,32 @@ mod tests {
     vval.read(&v, (len as usize) + 1);
     assert_eq!(vval.to_i64(), -1);
   }
+
+  #[test]
+  #[should_panic]
+  fn panic_to_float() {
+    let v = [0x01, 0x02, 0x01];
+    let mut tlv = TLV::default();
+    tlv.read(&v, 0);
+    tlv.to_float();
+  }  
+  
+  #[test]
+  #[should_panic]
+  fn panic_to_string() {
+    let v = [0x01, 0x02, 0x01];
+    let mut tlv = TLV::default();
+    tlv.read(&v, 0);
+    tlv.to_string();
+  }
+  
+  #[test]
+  #[should_panic]
+  fn panic_to_uuid() {
+    let v = [0x01, 0x02, 0x01];
+    let mut tlv = TLV::default();
+    tlv.read(&v, 0);
+    tlv.to_uuid();
+  }
+
 }
