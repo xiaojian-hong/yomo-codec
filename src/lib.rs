@@ -2,18 +2,34 @@
 pub mod tag;
 pub mod varint;
 
-use tag::Tag;
+use tag::*;
 use varint::Varint;
 
 #[derive(Debug, Default)]
 pub struct TLV {
+  /// Tag 类型 1 Byte长度
   tag: Tag,
+  /// Value 的长度
   len: i64,
+  /// Value 的 raw bytes
   buf: Vec<u8>,
+  /// 如果是读取一连串的数组时，pos返回的是下一次读取的位置，方便streaming read
   pos: usize,
 }
 
 impl TLV {
+  /// Static method, build TLV block
+  pub fn from_data(data: &[u8], pos:usize) -> TLV {
+    let mut tlv = TLV { 
+      tag: Tag::new(0x00), 
+      len: 0,
+      buf: [].to_vec(),
+      pos: 0,
+    };
+    tlv.read(data, pos);
+    tlv
+  }
+
   /// 从一段二进制序列中，给定起始位置，开始读取出一个完整TLV结构的描述
   pub fn read(&mut self, data: &[u8], pos: usize) {
     self.pos = pos;
@@ -33,6 +49,7 @@ impl TLV {
     self.pos += delta;
     let tmp = &data[self.pos..(self.pos + (self.len as usize))];
     self.buf = tmp.to_vec();
+    self.pos += self.len as usize;
   }
 
   /// 如果TLV的`Value`是`Varint`类型，则转换为i64类型
@@ -67,6 +84,14 @@ mod tests {
   use super::*;
   use tag;
   use varint;
+
+  #[test]
+  fn read_data() {
+    let v = [0x01, 0x02, 0x01];
+    let mut tlv = TLV::from_data(&v, 0);
+    assert_eq!(tlv.to_binary().as_slice(), [0x01]);
+    assert_eq!(tlv.pos, 3);
+  }
 
   #[test]
   fn tlv() {
@@ -136,5 +161,4 @@ mod tests {
     tlv.read(&v, 0);
     tlv.to_uuid();
   }
-
 }
