@@ -121,9 +121,10 @@ mod tests {
   
   #[test]
   fn panic_to_string2() {
-    let v = [0x01, 0x04, 240, 159, 146, 150];
+    let v = [0x00, 0x08, 240, 159, 146, 150];
     let mut tlv = TLV::default();
     tlv.read(&v, 0);
+    assert_eq!(tlv.to_binary().as_slice(), [240, 159, 146, 150]);
     assert_eq!(tlv.to_string(), "💖");
   }
   
