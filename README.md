@@ -4,6 +4,10 @@
 
 开源工业微服务高性能编解码器
 
+# Coding
+
++ Add .githooks: `git config core.hooksPath .githooks`
+
 # Test
 
 `RUST_BACKTRACE=1 cargo test`
