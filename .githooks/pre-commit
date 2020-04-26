@@ -6,6 +6,7 @@
 # WARNING: rustfmt is a fast moving target so ensure you have the version that
 #          all contributors have.
 
+echo "[githook] rustfmt"
 for FILE in $(git diff --cached --name-only); do
   if [[ $FILE == *.rs ]] && ! rustfmt --write-mode diff --skip-children $FILE; then
     echo "Commit rejected due to invalid formatting of \"$FILE\" file."
