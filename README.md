@@ -6,7 +6,8 @@
 
 # Coding
 
-+ Add .githooks: `git config core.hooksPath .githooks`
+1. Add `rustfmt`: `rustup component add rustfmt --toolchain stable-x86_64-apple-darwin`
+1. Add .githooks: `git config core.hooksPath .githooks`
 
 # Test
 
