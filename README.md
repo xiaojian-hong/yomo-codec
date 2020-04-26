@@ -1,4 +1,7 @@
 # YoMo-Codec (Alpha)
+
+![CI](https://github.com/10cella/yomo-codec/workflows/CI/badge.svg?branch=doc)
+
 开源工业微服务高性能编解码器
 
 # Test
