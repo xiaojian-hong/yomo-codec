@@ -3,7 +3,7 @@ use std::vec::Vec;
 pub const MSB: u8 = 0b1000_0000;
 const DROP_MSB: u8 = 0b0111_1111;
 
-/// 描述变长类型（big-endian）
+/// 描述变长类型（little-endian）
 ///
 /// # 参考
 ///
@@ -107,6 +107,36 @@ impl Varint {
         self.vec.push(val as u8)
     }
 
+    /// Convert to u64 type value
+    ///
+    /// if vec are [0x81, 0x82, 0x03], which in binary is [0b1000_0001, 0b1000_0010, 0b0000_0011]
+    /// 1. remove msb: 0b0000_0001, 0b0000_0010, 0b0000_0011
+    /// 2. is little-endian, 每一个byte都选低7位，组合的结果是: 0000_0000_1100_0001_0000_0001
+    /// 3. 用u64表示结果: 0XC101 = 49409
+    pub fn to_u64(&self) -> u64 {
+        let len = self.vec.len();
+        let mut result: u64 = 0;
+        for i in 0..len {
+            result |= ((self.vec[i] & DROP_MSB) as u64) << (i * 7);
+        }
+        result
+    }
+
+    /// encode i64 to varint number
+    ///
+    /// 1. data:i64 = 255 (0b1111_1111)
+    /// 2. to Varint codec: [0b0111_1111, 0b0000_0001]
+    /// 3. add msb: [0b1111_1111，0b0000_0001]
+    pub fn from_u64(&mut self, data: u64) {
+        let mut val = data;
+        while val > DROP_MSB as u64 {
+            let element: u8 = (val as u8 & DROP_MSB) | MSB;
+            self.vec.push(element);
+            val >>= 7;
+        }
+        self.vec.push(val as u8)
+    }
+
     /// Convert to bool. empty means false,
     pub fn to_bool(&self) -> bool {
         if self.len() == 0 {
@@ -148,6 +178,17 @@ mod tests {
         let delta = reader.read(&v, 0);
         assert_eq!(reader.into_bytes(), &[0x81, 0x82, 0x03]);
         assert_eq!(delta, 3);
+    }
+
+    #[test]
+    fn from_to_u64() {
+        let data: u64 = 2;
+        let mut reader = Varint::new();
+        reader.from_u64(data);
+        assert_eq!(reader.into_bytes(), &[0x02]);
+        reader = Varint::new();
+        reader.read(&[0x02], 0);
+        assert_eq!(reader.to_u64(), data);
     }
 
     #[test]
