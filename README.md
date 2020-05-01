@@ -22,10 +22,13 @@
 [wikipedia: Type-length-value](https://en.wikipedia.org/wiki/Type-length-value)
 
 [LEB128编码方式](https://berryjam.github.io/2019/09/LEB128(Little-Endian-Base-128)%E6%A0%BC%E5%BC%8F%E4%BB%8B%E7%BB%8D/)
+
 [zigzag数据字典方式](https://developers.google.com/protocol-buffers/docs/encoding#signed-integers)
 
 [how to documenting the TVL protocol](https://github.com/lightningnetwork/lightning-rfc/blob/master/01-messaging.md)
+
 [a discussion on a encoding proposal](https://github.com/lightningnetwork/lightning-rfc/pull/607#issuecomment-504466232)
+
 
 # Tools for debug
 
