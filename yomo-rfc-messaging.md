@@ -6,11 +6,11 @@ Version 0 (v202003). This protocol defines the framing individual message format
 
 ## TOC
 
-    * [YoMo Message Format](#yomo-message-format)
-    * [TLV: Tag-Length-Value Format](#tag-length-value-format)
-    * [Fundamental Types](#fundamental-types)
-    * [TLTV Format](#tltv-format)
-    * [Complex Types](complex-types)
+* [YoMo Message Format](#yomo-message-format)
+* [TLV: Tag-Length-Value Format](#tag-length-value-format)
+* [Fundamental Types](#fundamental-types)
+* [TLTV Format](#tltv-format)
+* [Complex Types](complex-types)
 
 ## YoMo Message Format
 
